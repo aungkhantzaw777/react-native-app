@@ -7,6 +7,9 @@ import bodyParser from "body-parser";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import productRouter from "./route/product";
+import { env } from "./env";
+import userRouter from "./route/user";
+import orderRouter from "./route/order";
 // import bodyParser from 'body-parser';
 
 mongoose
@@ -20,10 +23,12 @@ mongoose
     console.log("db not connect", e);
   });
 
-dotenv.config();
+// dotenv.config();
+
+env.data?.DB_PASSOWRD;
 
 const app: Express = express();
-const port = process.env.PORT || 3000;
+const port = env.data?.PORT || 3000;
 
 app.use(cors());
 app.use(bodyParser.json());
@@ -34,6 +39,7 @@ app.use(express.urlencoded({ extended: true }));
 const secretKey = "123";
 
 app.get("/", (req: Request, res: Response) => {
+  console.log(env);
   res.send("Express + TypeScript Server");
 });
 
@@ -43,13 +49,35 @@ app.post("/register", async (req: Request, res: Response) => {
     // Hash the password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    await user.create({
+    const newUser = await user.findOne({
+      email: email,
+    });
+
+    if (newUser) {
+      return res.status(400).json({ message: "This email is already use!" });
+    }
+
+    const registeredUser = await user.create({
       email: email,
       name: name,
       password: hashedPassword,
     });
+
+    // Generate JWT token
+    const token = jwt.sign(
+      {
+        name: registeredUser?.name,
+        email: registeredUser?.email,
+        id: registeredUser._id,
+      },
+      env.data?.JWT_SECRET || "123",
+      {
+        expiresIn: "90d",
+      }
+    );
     res.status(201).send({
       status: "complete",
+      token: token,
     });
   } catch (e) {
     res.status(500).send({
@@ -64,7 +92,6 @@ app.post("/login", async (req: Request, res: Response) => {
   const logginUser = await user.findOne({
     email: email,
   });
-  console.log(logginUser);
 
   if (!logginUser) {
     return res.status(400).json({ message: "Invalid username or password" });
@@ -78,9 +105,13 @@ app.post("/login", async (req: Request, res: Response) => {
   }
 
   // Generate JWT token
-  const token = jwt.sign({ name: logginUser.name }, secretKey, {
-    expiresIn: "24h",
-  });
+  const token = jwt.sign(
+    { name: logginUser.name, email: logginUser.email, id: logginUser._id },
+    env.data?.JWT_SECRET || "123",
+    {
+      expiresIn: "90d",
+    }
+  );
   res.send({
     status: true,
     token: token,
@@ -88,6 +119,8 @@ app.post("/login", async (req: Request, res: Response) => {
 });
 
 app.use("/api", productRouter);
+app.use("/api/user", userRouter);
+app.use("/api/order", orderRouter);
 
 app.listen(port, () => {
   console.log(`[server]: Server is running at http://localhost:${port}`);

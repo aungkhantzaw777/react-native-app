@@ -1,11 +1,25 @@
 import { Request, Router, Response } from "express";
+import { productModel } from "../models/product";
+import { authenticateJWT } from "../middleware/authguard";
+import jwt from "jsonwebtoken";
+import { env } from "../env";
 
-const productRouter = Router();
+const userRouter = Router();
+const secretKey = env.data?.JWT_SECRET || "123";
 
-productRouter.get("/product", (req: Request, res: Response) => {
+userRouter.get("/me", authenticateJWT, (req: Request, res: Response) => {
+  // const products = productModel.find().limit(10);
+  const authHeader = req.headers.authorization;
+
+  const token = authHeader?.replace("Bearer ", "");
+  const decoded = jwt.verify(token || "", secretKey) as unknown as {
+    name: string;
+    email: string;
+  };
+
   res.send({
-    products: [],
+    user: decoded,
   });
 });
 
-export default productRouter;
+export default userRouter;
