@@ -39,7 +39,7 @@ export default function Home() {
   const colorScheme = useColorScheme();
   const flatListRef = useRef();
 
-  const { data, isError, error, refetch, isFetching, isLoading } = useApi(['shopping'], (ctx, token) => {
+  const { data, isError, error, refetch, isFetching, isLoading } = useApi(['myorder'], (ctx, token) => {
     console.log('token is', token)
     return getProduct(token)
   })
